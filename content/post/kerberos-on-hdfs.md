@@ -37,7 +37,7 @@ Let me draw a diagram.
 From next section, we are going to find out the answer step by step.
 
 
-## foo and John Doe, how can they be associated?
+## foo and John Doe, how can they be associated? (keytab)
 
 {{< responsive-figure src="/images/kerberos-and-hdfs-foo-and-john-doe.png" class="left" >}}
 
@@ -53,14 +53,80 @@ _kinit_ is the command to consume keytab
 
 ~~~bash
 su - foo # You are foo
-kinit -kt /etc/security/keytabs/john.doe.keytab john/doe@PIVOTAL.IO # Now you are john/doe 
+kinit -kt /etc/security/keytabs/john.doe.keytab john/doe@PIVOTAL.IO # Now you are john/doe@PIVOTAL.IO
 ~~~
 
 Done.
 
 We keep finding how each association is established this way. Next...
 
-## John to Jane
+## John to Jane (auth_to_local)
+
+{{< responsive-figure src="/images/kerberos-and-hdfs-auth_to_local.png" class="left" >}}
+
+User foo has kinit-ed john/doe@PIVOTAL.IO. Now it associates with jane. Simple "jane", using some concept called _auth_to_local_.
+
+What does it mean?
+
+* Map to a simple user id like jane, instead of jone/doe@PIVOTAL.IO
+* Can bring a concept of Grouping using Linux’s /etc/groups (Is it? Will talk about this later)
+
+### What is auth_to_local?
+
+_auth_to_local_ is a configuration that maps one type of string to another. Something look like this
+
+{{< responsive-figure src="/images/kerberos-and-hdfs-auth_to_local-setting-on-ambari.png" class="left" >}}
+(Screenshot from Ambari and stored in core-site.xml)
+
+And yes, that's the intimidiating and mysterius string I raised at the top of this blog post. Let's learn how that works (and hopefully it is less mysterious :) )
+
+### How auth_to_local translation occurs
+
+```
+RULE:[2:$1@$0](dn@EXAMPLE.COM)s/.*/hdfs/
+```
+
+It consists 3 parts.
+
+| Part            | Name                    |
+| --------------  | ----------------------- | 
+| [2:$1@$0]       | Principal Translation   |
+| dn@EXAMPLE.COM  | Acceptance Filter       |
+| s/.*/hdfs/      | Short Name Substitution 
+
+
+### Principal Translation
+
+TODO
+
+### Acceptance Filter
+
+This is to filter results of Principal Translation. 
+
+When Principal Translation result is “dn@EXAMPLE.COM”,
+
+| Filter is       | Match?       |
+| --------------  | ------------ | 
+| dn@EXAMPLE.COM  | Matches      |
+| nn@EXAMPLE.COM  | Not match    |
+| [rn]m@.*        | Not match    |
+| [dn]n@.*        | Matches      |
+
+It is pretty flexible. You can use regular expression too.
+
+
+### Short Name Substitution
+If the string is matched, then it make it shorer name using sed’s replace expression
+
+When Principal translation result is _"dn@EXAMPLE.COM"_ and Short Name Substitution is _"s/.*/hdfs/"_ the result is _"hdfs"_, as in
+
+```bash
+> echo "dn@EXAMPLE.COM" | sed s/.*/hdfs/
+hdfs
+```
+
+
+
 
 
 _copied from [the README](https://github.com/pivotal/blog#writing-a-good-post)..._
